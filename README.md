@@ -1,4 +1,5 @@
 # sampleProc
 
-Take a sample of process activity from /tproc on linux
+Capture a sample of activity from a program,
+via /proc on linux
 
