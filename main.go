@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/acksin/procfs"
 	"log"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,7 @@ func main() {
 	var period time.Duration
 	var pids []int
 	var err error
+	var wg sync.WaitGroup
 
 	flag.IntVar(& seconds, "seconds", 10, "length of sample in seconds")
 	flag.Parse()
@@ -35,37 +37,40 @@ func main() {
 	if len (pids) <= 0 {
 		log.Fatalf("no process matched %s\n", name)
 	}
-
-	// do exactly and only the first
-	proc, err := procfs.NewProc(pids[0])
-	if err != nil {
-		log.Fatalf("could not get process: %s", err)
+	fmt.Printf("#name, pid, cputime\n")
+	for _, pid := range(pids) {
+		wg.Add(1)
+		var proc procfs.Proc
+		proc, err = procfs.NewProc(pid)
+		if err != nil {
+			log.Fatalf("could not get process: %s", err)
+		}
+		go sample(period, proc, &wg)
 	}
-	sample(period, proc)
+	wg.Wait()
 }
 
 // sample takes a stat before and after a period of sample seconds and prints it
-func sample(period time.Duration, p procfs.Proc) {
+func sample(period time.Duration, p procfs.Proc, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	before, err := p.NewStat()
 	if err != nil {
-		log.Fatalf("could not get process at beginning: %s", err)
+		log.Fatalf("could not get process, it exited: %s", err)
+		return
 	}
 
 	time.Sleep(period)
 
 	after, err :=  p.NewStat()
 	if err != nil {
-		log.Fatalf("could not get process at end: %s", err)
+		fmt.Printf("%s, %d, exited\n", before.Comm, before.PID)
+
+		return
 	}
 
     // report results
-	fmt.Printf("#name, cputime\n")
-	fmt.Printf("%s, %f\n", before.Comm, after.CPUTime() - before.CPUTime())
-}
-
-// print does just that, in go format
-func print( p procfs.ProcStat) {
-	fmt.Printf("%#v\n", p)
+	fmt.Printf("%s, %d, %f\n", before.Comm, before.PID, after.CPUTime() - before.CPUTime())
 }
 
 // PidOf returns a pid array for a given program-name or error
@@ -88,5 +93,4 @@ func PidOf(name string) ([]int, error) {
 		}
 	}
 	return pids, nil
-	//return nil, fmt.Errorf("not implemented yet")
 }
