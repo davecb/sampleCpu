@@ -1,21 +1,23 @@
 package main
 
-// sampleProc -- take a sample of N seconds of statistics from a program from /proc
-//		uses github.com/prometheus/procfs
+// sampleProc -- take a sample of N seconds of statistics from a program using /proc.
+//		Uses github.com/acksin/procfs , one of many by that name.
 
 import (
 	"flag"
 	"fmt"
 	"github.com/acksin/procfs"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
 
 // usage prints out what this is
 func usage() {
-	log.Printf("sampleProc -- take a sample of N seconds of statistics from a program\n")
-	log.Printf("Usage: sampleProc [--seconds N] program")
+	log.Printf("sampleProc -- take a sample of N seconds of statistics from one or more programs\n")
+	log.Printf("Usage: sampleProc [--seconds N] program ...")
+	os.Exit(1)
 }
 
 // main -- start, parse args
@@ -28,35 +30,42 @@ func main() {
 
 	flag.IntVar(& seconds, "seconds", 10, "length of sample in seconds")
 	flag.Parse()
-
+	if len(flag.Args()) == 0 {
+		usage()
+	}
 	period = time.Duration(seconds) * time.Second
 
-	// scan /proc for processes matching name
-	name := flag.Arg(0)
-	pids, err = PidOf(name)
-	if len (pids) <= 0 {
-		log.Fatalf("no process matched %s\n", name)
-	}
+	// scan /proc for processes matching names, a racy action
 	fmt.Printf("#name, pid, cputime\n")
-	for _, pid := range(pids) {
-		wg.Add(1)
-		var proc procfs.Proc
-		proc, err = procfs.NewProc(pid)
-		if err != nil {
-			log.Fatalf("could not get process: %s", err)
+	for i := 0; i < flag.NArg(); i++ {
+		name := flag.Arg(i)
+		pids, err = PidOf(name)
+		if len(pids) <= 0 {
+			log.Printf("no process matched %s, ignored\n", name)
+			continue
 		}
-		go sample(period, proc, &wg)
+		for _, pid := range pids {
+			var proc procfs.Proc
+
+			wg.Add(1)
+			proc, err = procfs.NewProc(pid)
+			if err != nil {
+				log.Printf("could not get process for pid %d, ignored: %s ", pid, err)
+				continue
+			}
+			go sample(period, proc, &wg)
+		}
 	}
 	wg.Wait()
 }
 
-// sample takes a stat before and after a period of sample seconds and prints it
+// sample takes a stat before and after a specified number of seconds and prints it
 func sample(period time.Duration, p procfs.Proc, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	before, err := p.NewStat()
 	if err != nil {
-		log.Fatalf("could not get process, it exited: %s", err)
+		log.Printf("could not get process %d, it had already exited: %s", p.PID, err)
 		return
 	}
 
@@ -65,7 +74,6 @@ func sample(period time.Duration, p procfs.Proc, wg *sync.WaitGroup) {
 	after, err :=  p.NewStat()
 	if err != nil {
 		fmt.Printf("%s, %d, exited\n", before.Comm, before.PID)
-
 		return
 	}
 
@@ -74,8 +82,8 @@ func sample(period time.Duration, p procfs.Proc, wg *sync.WaitGroup) {
 }
 
 // PidOf returns a pid array for a given program-name or error
-// An empty array is not an error here, but it probably is to
-// the caller (;-))
+// An empty array is not an error here, but it usually is to
+// the caller
 func PidOf(name string) ([]int, error) {
 	var pids []int // make()?
 
@@ -86,7 +94,7 @@ func PidOf(name string) ([]int, error) {
 	for _, p := range procs {
 		pn, err := p.Comm()
 		if err != nil {
-			return nil, fmt.Errorf("could not a command-name from /proc")
+			return nil, fmt.Errorf("could not get a command-name for pid %d", p.PID)
 		}
 		if pn == name {
 			pids = append(pids, p.PID)
