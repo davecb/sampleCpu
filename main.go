@@ -1,6 +1,6 @@
 package main
 
-// sampleProc -- take a sample of N seconds of statistics from a program using /proc.
+// sampleCPU -- take a sample of N seconds of statistics from a program, using /proc.
 //		Uses github.com/acksin/procfs , one of many by that name.
 
 import (
@@ -15,8 +15,8 @@ import (
 
 // usage prints out what this is
 func usage() {
-	log.Printf("sampleProc -- take a sample of N seconds of statistics from one or more programs\n")
-	log.Printf("Usage: sampleProc [--seconds N] program ...")
+	log.Printf("sampleCPU -- take a sample of N seconds of statistics from one or more programs\n")
+	log.Printf("Usage: sampleCPU [--seconds N] program ...")
 	os.Exit(1)
 }
 

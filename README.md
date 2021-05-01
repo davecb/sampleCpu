@@ -1,11 +1,11 @@
-sampleProc.1
+sampleCPU.1
 ====
 ## NAME
-sampleProc - Capture a sample of activity from a program
+sampleCPU - Capture a sample of activity from a program
 ## SYNOPSIS
-sampleProc [--seconds N] program [program] ...
+sampleCPU [--seconds N] program [program] ...
 ## DESCRIPTION
-sampleProc is used to capture samples of CPU activity from
+sampleCPU is used to capture samples of CPU activity from
 programs via /proc.
 
 Output is in comma-separated-value format
