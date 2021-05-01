@@ -1,3 +1,6 @@
+This is the implementation, in mainline.md
+
+```go "mainline" +=
 package main
 
 // sampleCPU -- take a sample of N seconds of statistics from a program, using /proc.
@@ -23,7 +26,7 @@ func usage() {
 // main -- start, parse args
 func main() {
 	var seconds int
-	var period time.Duration
+	var proc procfs.Proc
 	var pids []int
 	var err error
 	var wg sync.WaitGroup
@@ -33,10 +36,10 @@ func main() {
 	if len(flag.Args()) == 0 {
 		usage()
 	}
-	period = time.Duration(seconds) * time.Second
+	fmt.Printf("#name, pid, seconds, cputime\n")
+
 
 	// scan /proc for processes matching names, a racy action
-	fmt.Printf("#name, pid, cputime\n")
 	for i := 0; i < flag.NArg(); i++ {
 		name := flag.Arg(i)
 		pids, err = PidOf(name)
@@ -45,7 +48,6 @@ func main() {
 			continue
 		}
 		for _, pid := range pids {
-			var proc procfs.Proc
 
 			wg.Add(1)
 			proc, err = procfs.NewProc(pid)
@@ -53,33 +55,21 @@ func main() {
 				log.Printf("could not get process for pid %d, ignored: %s ", pid, err)
 				continue
 			}
-			go sample(period, proc, &wg)
+			go sample(seconds, proc, &wg)
 		}
 	}
 	wg.Wait()
 }
 
+
 // sample takes a stat before and after a specified number of seconds and prints it
-func sample(period time.Duration, p procfs.Proc, wg *sync.WaitGroup) {
+func sample(period int, p procfs.Proc, wg *sync.WaitGroup) {
+    var i int
 	defer wg.Done()
 
-	before, err := p.NewStat()
-	if err != nil {
-		log.Printf("could not get process %d, it had already exited: %s", p.PID, err)
-		return
-	}
-
-	time.Sleep(period)
-
-	after, err :=  p.NewStat()
-	if err != nil {
-		fmt.Printf("%s, %d, exited\n", before.Comm, before.PID)
-		return
-	}
-
-    // report results
-	fmt.Printf("%s, %d, %f\n", before.Comm, before.PID, after.CPUTime() - before.CPUTime())
-}
+    <<<sample collection>>>
+	
+ }
 
 // PidOf returns a pid array for a given program-name or error
 // An empty array is not an error here, but it usually is to
@@ -102,3 +92,15 @@ func PidOf(name string) ([]int, error) {
 	}
 	return pids, nil
 }
+```
+
+
+first part
+```go "get before value" +=
+    before, err := p.NewStat()
+	if err != nil {
+		log.Printf("could not get process %d, it had already exited: %s", p.PID, err)
+		return
+	}
+```
+
