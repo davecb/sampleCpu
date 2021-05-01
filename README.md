@@ -10,10 +10,17 @@ The only tricky thing was that the old batch program spun off
 short-lived children, each taking a few inputs, processing them, then 
 shutting down and reporting the results
 
-The program looked like this
-```go main.go
-<<<mainline>>>
+The program looked like 
+```go "usused code" +=
+for each program mentioned
+    <<<get list of PIDs>>>
+    for each pid
+        <<<sample their CPU use>>>
 ```
+```go main.go
+<<<subroutines>>>
+```
+
 
 The first time I tried measuring, I got stats from one go program and 126 batch
 children, 22 of which had exited before the sampling period was over.

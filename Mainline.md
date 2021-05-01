@@ -1,6 +1,6 @@
 This is the implementation, in mainline.md
 
-```go "mainline" +=
+```go "subroutines" +=
 package main
 
 // sampleCPU -- take a sample of N seconds of statistics from a program, using /proc.
