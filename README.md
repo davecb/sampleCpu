@@ -155,3 +155,116 @@ That's going to cause a change to the main program: it looped through the
 passed-in names, getting their process IDs, then started a goroutine for each
 pid it found.
 
+Now we need to make it repeat the process.  A plausible breakdown it to
+create a goroutine for each program passed in, and have it loop getting 
+PIDs, and then for each new one, start a measurement goroutine.
+
+```go "unused code" +=
+for each program mentioned
+    <<<spin off a goroutine>>>
+    
+in the goroutine
+    loop every second   
+        <<<get list of PIDs>>>
+           for each new pid
+                 <<<sample their CPU use>>>
+```
+
+
+Those goroutines now have to know what time they started, so they can each take
+a sample that ends at the same time.
+
+The whole idea here is to capture every batch child that is running during the
+measurement interval, with a known margin of error. Preferably something small
+and measurable, not 29%
+
+The main loop now becomes just
+
+```go "main loop" += 
+	// scan /proc for processes matching names, a racy action
+	if flag.NArg() <= 0 {
+	    log.Printf("No names to get the PIDs of\n")
+	}
+	for i := 0; i < flag.NArg(); i++ {
+	    wg.Add(1)
+	    go sampleOneName(flag.Arg(i), seconds, &wg)
+	}
+	wg.Wait()
+```
+
+The core of sampleOneName turns into a loop, that pools /proc for new pids, then
+start a measurement goroutine for each.
+
+```go "sample one name" +=
+func sampleOneName(name string, seconds int, wg *sync.WaitGroup) {
+    var newPids []int             // just new pids
+    var pids = make(map[int]bool) // all pids
+    var err error
+
+    defer wg.Done()
+    for i := 0; i < seconds; i++ {
+        newPids, pids, err = NewPIDs(name, pids)
+	    if err != nil {
+		    log.Printf("no pids for %s in this round\n", name)
+		    continue
+	    }
+	    if len(pids) <= 0 {
+		    //log.Printf("no new pids for %s in this round\n", name)
+		    continue
+	    }
+	    for _, pid := range newPids {
+		    proc, err := procfs.NewProc(pid)
+		    if err != nil {
+			    log.Printf("could not get process for pid %d, ignored: %s ", pid, err)
+			       continue
+		    }
+		    wg.Add(1)
+		    go sample(seconds-i, proc, wg)
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
+```
+
+##  Testing this one
+Ok, looks like I need a program that spins off children. How about
+```bash "parent" +=
+#!/bin/bash
+i=0
+while [ $i -lt 10 ]; do
+    sleep 40 &
+    coproc read -t 1 && wait "$!" || true
+    i=`expr $i + 1`
+done
+```
+The coproc line is a bash-specific trick to wait without running the wait  
+command, so sampleCpu will only see the ten sleeps, not any extra ones.
+
+When we run that, we get a group of of ten *sleep 40*s, spaced close to
+a second apart, which will run for more than the 30 seconds sample
+period. The actual output is:
+
+```
+lmt README.md Implementation.md
+go fmt
+main.go
+parent &
+go run main.go -seconds 30 sleep
+#name, pid, seconds, cputime
+sleep, 36965, 30, 0.000000
+sleep, 37023, 29, 0.000000
+sleep, 37026, 28, 0.000000
+sleep, 37029, 27, 0.000000
+sleep, 37032, 26, 0.000000
+sleep, 37036, 25, 0.000000
+sleep, 37039, 24, 0.000000
+sleep, 37044, 23, 0.000000
+sleep, 37048, 22, 0.000000
+sleep, 37051, 21, 0.000000
+```
+
+So we find the new sleeps as they start, and report the amount of cpu
+(zero) that they spent during the 30-second sampling period.
+
+## Testing the real thing once more
+This time we how to get a result with a somewhat smaller margin of error

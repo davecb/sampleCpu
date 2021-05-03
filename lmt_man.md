@@ -68,6 +68,8 @@ main.go:1:2: expected 'package', found 'EOF'
 
 running them through lmt in the oposite order fails identically
 
+doesn't see that go "fred+= is an error
+
 
 
 

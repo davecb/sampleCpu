@@ -2,15 +2,14 @@ try: build
 	go run main.go -seconds 5 bash
 
 build:
-	lmt README.md Mainline.md
+	lmt README.md Implementation.md
 	go fmt
 
 
-chmod:
-	chmod a+x exit_early
-fail: chmod build
+early:  build
 	exit_early &
 	go run main.go -seconds 30 sleep
-ps: chmod
-	exit_early &
-	pgrep sleep
+
+late: build
+	parent &
+	go run main.go -seconds 30 sleep

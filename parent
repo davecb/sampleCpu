@@ -1,0 +1,7 @@
+#!/bin/bash
+i=0
+while [ $i -lt 10 ]; do
+    sleep 40 &
+    coproc read -t 1 && wait "$!" || true
+    i=`expr $i + 1`
+done
