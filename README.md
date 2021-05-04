@@ -267,4 +267,4 @@ So we find the new sleeps as they start, and report the amount of cpu
 (zero) that they spent during the 30-second sampling period.
 
 ## Testing the real thing once more
-This time we how to get a result with a somewhat smaller margin of error
+This time we got a result with a somewhat smaller margin of error
