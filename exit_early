@@ -1,0 +1,5 @@
+#!/bin/bash
+# pretend to run for 30 seconds
+sleep 10
+# ok, we pretended! now quit.
+exit
