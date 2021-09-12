@@ -202,6 +202,9 @@ func sampleOneName(name string, seconds int, wg *sync.WaitGroup) {
     var err error
 
     defer wg.Done()
+    if len(name) > 15 {
+    	name = name[:15] // the data we use is truncated, so we must too
+    }
     for i := 0; i < seconds; i++ {
         newPids, pids, err = NewPIDs(name, pids)
 	    if err != nil {
